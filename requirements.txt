@@ -2,3 +2,23 @@ asgiref==3.8.1
 Django==5.1.7
 pillow==11.1.0
 sqlparse==0.5.3
+# For stock prediction and data handling
+pandas==2.2.2
+numpy==1.26.4
+scikit-learn==1.4.2
+prophet==1.1.5
+joblib==1.4.0
+matplotlib==3.8.3
+seaborn==0.13.2
+# For chart rendering in templates
+plotly==5.18.0
+# For date handling
+python-dateutil==2.9.0.post0
+# For HTTP requests (if fetching live data)
+requests==2.31.0
+# For scientific computing
+scipy==1.13.0
+# For progress bars (optional)
+tqdm==4.66.2
+# For serialization
+pickle-mixin==1.0.2
