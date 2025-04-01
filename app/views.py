@@ -179,7 +179,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from django.http import JsonResponse
 
-@login_required
+
 def load_prophet_model(company_name):
     try:
         filename = f"app/models/prophet_model_{company_name}.pkl"
