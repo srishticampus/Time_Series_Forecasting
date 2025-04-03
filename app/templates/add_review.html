@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold">Review {{ company.name }} ({{ company.symbol }})</h2>
+            <a href="{% url 'company_reviews' company.symbol %}" class="text-primary hover:text-primary-dark">
+                Back to Reviews
+            </a>
+        </div>
+        
+        <form method="POST">
+            {% csrf_token %}
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">Rating</label>
+                    {{ form.rating }}
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">Your Review</label>
+                    {{ form.comment }}
+                </div>
+                <button type="submit" class="w-full bg-primary text-white py-2 rounded hover:bg-primary-dark">
+                    Submit Review
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

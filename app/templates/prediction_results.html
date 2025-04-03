@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">{{ company.name }} ({{ company.symbol }}) Prediction</h2>
+        <a href="{% url 'dashboard' %}" class="text-primary hover:text-primary-dark">
+            Back to Dashboard
+        </a>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <div id="timeSeriesChart" style="height: 400px;"></div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b">
+            <h3 class="text-lg font-medium">Detailed Predictions (Next {{ days }} Days)</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Predicted Price</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lower Bound</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Upper Bound</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for pred in predictions %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ pred.forecast_date|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${{ pred.predicted_price|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${{ pred.lower_bound|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${{ pred.upper_bound|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script>
+    const chartData = {{ chart_data|safe }};
+    const chart = echarts.init(document.getElementById('timeSeriesChart'));
+    
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross'
+            }
+        },
+        legend: {
+            data: ['Predicted', 'Confidence Interval']
+        },
+        xAxis: {
+            type: 'category',
+            data: chartData.dates
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                formatter: '${value}'
+            }
+        },
+        series: [
+            {
+                name: 'Predicted',
+                type: 'line',
+                data: chartData.predicted,
+                smooth: true,
+                lineStyle: {
+                    color: '#4F46E5',
+                    width: 3
+                },
+                itemStyle: {
+                    color: '#4F46E5'
+                }
+            },
+            {
+                name: 'Confidence Interval',
+                type: 'line',
+                data: chartData.upper,
+                lineStyle: {
+                    opacity: 0
+                },
+                stack: 'confidence',
+                symbol: 'none',
+                areaStyle: {
+                    color: '#A5B4FC',
+                    opacity: 0.4
+                },
+                emphasis: {
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            },
+            {
+                name: 'Confidence Interval',
+                type: 'line',
+                data: chartData.lower,
+                lineStyle: {
+                    opacity: 0
+                },
+                areaStyle: {
+                    color: '#A5B4FC',
+                    opacity: 0.4
+                },
+                stack: 'confidence',
+                symbol: 'none'
+            }
+        ]
+    };
+    
+    chart.setOption(option);
+    window.addEventListener('resize', function() {
+        chart.resize();
+    });
+</script>
+{% endblock %}

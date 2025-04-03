@@ -1,271 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>User Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              primary: "#4F46E5",
-              secondary: "#6366F1",
-            },
-            borderRadius: {
-              none: "0px",
-              sm: "4px",
-              DEFAULT: "8px",
-              md: "12px",
-              lg: "16px",
-              xl: "20px",
-              "2xl": "24px",
-              "3xl": "32px",
-              full: "9999px",
-              button: "8px",
-            },
-          },
-        },
-      };
-    </script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css"
-    />
-    <style>
-      :where([class^="ri-"])::before {
-        content: "\f3c2";
-      }
-    </style>
-  </head>
-  <body class="bg-gray-50 min-h-screen">
-    <div class="flex min-h-screen">
-      <nav class="w-64 bg-white shadow-lg">
-        <div class="mt-8">
-          <div class="px-4">
-            <div class="flex flex-col items-center justify-center mb-8">
-              <h3 class="text-lg font-semibold">Michael Anderson</h3>
-              <p class="text-sm text-gray-500">Senior Data Analyst</p>
-            </div>
-          </div>
-          <div class="space-y-2">
-            <a
-              href="#"
-              class="flex items-center px-4 py-3 text-primary bg-indigo-50"
-            >
-              <div class="w-6 h-6 flex items-center justify-center">
-                <i class="ri-dashboard-line"></i>
-              </div>
-              <span class="ml-3">Dashboard</span>
-            </a>
-            <button
-              id="logoutBtn"
-              class="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 w-full"
-            >
-              <div class="w-6 h-6 flex items-center justify-center">
-                <i class="ri-logout-box-line"></i>
-              </div>
-              <span class="ml-3">Logout</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-      <main class="flex-1 p-8">
-        <div class="flex justify-between items-center mb-8">
-          <h1 class="text-2xl font-bold">Dashboard Overview</h1>
-        </div>
-        <div class="grid grid-cols-1 gap-6 mb-8">
-          <div class="bg-white p-6 rounded-lg shadow">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-semibold">Profile Info</h3>
-              <button class="text-primary hover:text-primary-dark">
-                <div class="w-5 h-5 flex items-center justify-center">
-                  <i class="ri-edit-line"></i>
-                </div>
-              </button>
-            </div>
-            <div class="space-y-3">
-              <div class="flex items-center">
-                <div
-                  class="w-5 h-5 flex items-center justify-center text-gray-400"
-                >
-                  <i class="ri-mail-line"></i>
-                </div>
-                <span class="ml-3 text-sm">michael.anderson@company.com</span>
-              </div>
-              <div class="flex items-center">
-                <div
-                  class="w-5 h-5 flex items-center justify-center text-gray-400"
-                >
-                  <i class="ri-user-line"></i>
-                </div>
-                <span class="ml-3 text-sm">Senior Data Analyst</span>
-              </div>
-              <div class="flex items-center">
-                <div
-                  class="w-5 h-5 flex items-center justify-center text-gray-400"
-                >
-                  <i class="ri-shield-check-line"></i>
-                </div>
-                <span class="ml-3 text-sm">Active Account</span>
-              </div>
-              <div class="flex items-center">
-                <div
-                  class="w-5 h-5 flex items-center justify-center text-gray-400"
-                >
-                  <i class="ri-time-line"></i>
-                </div>
-                <span class="ml-3 text-sm"
-                  >Last login: March 24, 2025 09:45 AM</span
-                >
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="bg-white p-6 rounded-lg shadow">
-          <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-semibold">Time Series Prediction</h3>
-            <div class="flex items-center space-x-4">
-              <div class="relative">
-                <button
-                  id="dateRangeBtn"
-                  class="flex items-center px-4 py-2 border rounded-button"
-                >
-                  <div class="w-5 h-5 flex items-center justify-center">
-                    <i class="ri-calendar-line"></i>
-                  </div>
-                  <span class="ml-2">Last 7 Days</span>
-                </button>
-              </div>
-              <button class="p-2 hover:bg-gray-100 rounded-full">
-                <div class="w-5 h-5 flex items-center justify-center">
-                  <i class="ri-download-line"></i>
-                </div>
-              </button>
-            </div>
-          </div>
-          <div id="timeSeriesChart" class="w-full h-96"></div>
-          <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
-          <script>
-            const chart = echarts.init(
-              document.getElementById("timeSeriesChart")
-            );
-            const mockData = {
-              dates: [
-                "2025-03-18",
-                "2025-03-19",
-                "2025-03-20",
-                "2025-03-21",
-                "2025-03-22",
-                "2025-03-23",
-                "2025-03-24",
-              ],
-              actual: [120, 132, 101, 134, 90, 230, 210],
-              predicted: [110, 125, 105, 140, 95, 220, 215],
-            };
-            const option = {
-              animation: false,
-              tooltip: {
-                trigger: "axis",
-                backgroundColor: "rgba(255, 255, 255, 0.9)",
-                borderColor: "#eee",
-                borderWidth: 1,
-                textStyle: {
-                  color: "#1f2937",
-                },
-              },
-              legend: {
-                data: ["Actual", "Predicted"],
-                bottom: 0,
-                textStyle: {
-                  color: "#1f2937",
-                },
-              },
-              grid: {
-                top: "3%",
-                left: "3%",
-                right: "4%",
-                bottom: "10%",
-                containLabel: true,
-              },
-              xAxis: {
-                type: "category",
-                boundaryGap: false,
-                data: mockData.dates,
-                axisLabel: {
-                  color: "#1f2937",
-                },
-              },
-              yAxis: {
-                type: "value",
-                axisLabel: {
-                  color: "#1f2937",
-                },
-              },
-              series: [
-                {
-                  name: "Actual",
-                  type: "line",
-                  smooth: true,
-                  data: mockData.actual,
-                  itemStyle: {
-                    color: "rgba(87, 181, 231, 1)",
-                  },
-                  areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                      {
-                        offset: 0,
-                        color: "rgba(87, 181, 231, 0.1)",
-                      },
-                      {
-                        offset: 1,
-                        color: "rgba(87, 181, 231, 0)",
-                      },
-                    ]),
-                  },
-                  showSymbol: false,
-                },
-                {
-                  name: "Predicted",
-                  type: "line",
-                  smooth: true,
-                  data: mockData.predicted,
-                  itemStyle: {
-                    color: "rgba(141, 211, 199, 1)",
-                  },
-                  areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                      {
-                        offset: 0,
-                        color: "rgba(141, 211, 199, 0.1)",
-                      },
-                      {
-                        offset: 1,
-                        color: "rgba(141, 211, 199, 0)",
-                      },
-                    ]),
-                  },
-                  showSymbol: false,
-                },
-              ],
-            };
-            chart.setOption(option);
-            window.addEventListener("resize", () => {
-              chart.resize();
-            });
-            document
-              .getElementById("dateRangeBtn")
-              .addEventListener("click", function () {
-                const ranges = ["Last 7 Days", "Last 30 Days", "Last 90 Days"];
-                const currentRange = this.querySelector("span").textContent;
-                const nextRange =
-                  ranges[(ranges.indexOf(currentRange) + 1) % ranges.length];
-                this.querySelector("span").textContent = nextRange;
-              });
-          </script>
-        </div>
-      </main>
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold">Dashboard Overview</h1>
+        {% if user.is_superuser %}
+        <a href="{% url 'manage_companies' %}" class="bg-primary text-white px-4 py-2 rounded">
+            Manage Companies
+        </a>
+        {% endif %}
     </div>
-  </body>
-</html>
+
+    <!-- Company Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {% for company in companies %}
+        <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+            <h3 class="text-lg font-semibold mb-2">{{ company.symbol }}</h3>
+            <p class="text-gray-600 mb-4">{{ company.name }}</p>
+            
+            <form method="POST" action="{% url 'predict_stock' company.symbol %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Forecast Days</label>
+                    <input type="number" name="days" value="30" min="1" max="365" 
+                           class="w-full px-3 py-2 border rounded">
+                </div>
+                <button type="submit" class="w-full bg-primary text-white py-2 rounded hover:bg-primary-dark">
+                    Predict
+                </button>
+            </form>
+            
+            <a href="{% url 'company_reviews' company.symbol %}" 
+               class="mt-3 block text-center text-sm text-primary hover:underline">
+                View Reviews
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">Your Recent Predictions</h3>
+        
+        {% if recent_predictions %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prediction</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Range</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for pred in recent_predictions %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ pred.company.symbol }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ pred.forecast_date|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${{ pred.predicted_price|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            ${{ pred.lower_bound|floatformat:2 }} - ${{ pred.upper_bound|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500">No predictions yet. Make your first prediction!</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
