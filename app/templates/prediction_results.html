@@ -2,165 +2,119 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <div class="bg-white rounded-lg shadow-lg p-6">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-800">
-                {{ company.name }} ({{ company.symbol }}) Prediction
-            </h2>
-            <a href="{% url 'dashboard' %}" class="text-primary hover:text-primary-dark">
-                Back to Dashboard
-            </a>
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">{{ company.name }} ({{ company.symbol }}) Prediction</h2>
+        <a href="{% url 'dashboard' %}" class="text-primary hover:text-primary-dark">
+            Back to Dashboard
+        </a>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <div id="timeSeriesChart" style="height: 400px;"></div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b">
+            <h3 class="text-lg font-medium">Detailed Predictions (Next {{ days }} Days)</h3>
         </div>
-        
-        <div class="mb-8">
-            <div id="timeSeriesChart" class="w-full h-96"></div>
-        </div>
-        
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-medium text-gray-900">
-                    Detailed Predictions (Next {{ days }} Days)
-                </h3>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Date
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Predicted Price
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Lower Bound
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Upper Bound
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for pred in predictions %}
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ pred.forecast_date }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                ${{ pred.predicted_price }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                ${{ pred.lower_bound }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                ${{ pred.upper_bound }}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Predicted Price</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lower Bound</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Upper Bound</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for pred in predictions %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ pred.forecast_date|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${{ pred.predicted_price|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${{ pred.lower_bound|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${{ pred.upper_bound|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <script>
     const chartData = {{ chart_data|safe }};
     const chart = echarts.init(document.getElementById('timeSeriesChart'));
     
     const option = {
-        animation: false,
         tooltip: {
             trigger: 'axis',
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            borderColor: '#eee',
-            borderWidth: 1,
-            textStyle: {
-                color: '#1f2937',
-            },
+            axisPointer: {
+                type: 'cross'
+            }
         },
         legend: {
-            data: ['Predicted', 'Confidence Interval'],
-            bottom: 0,
-            textStyle: {
-                color: '#1f2937',
-            },
-        },
-        grid: {
-            top: '3%',
-            left: '3%',
-            right: '4%',
-            bottom: '10%',
-            containLabel: true,
+            data: ['Predicted', 'Confidence Interval']
         },
         xAxis: {
             type: 'category',
-            boundaryGap: false,
-            data: chartData.dates,
-            axisLabel: {
-                color: '#1f2937',
-            },
+            data: chartData.dates
         },
         yAxis: {
             type: 'value',
             axisLabel: {
-                color: '#1f2937',
                 formatter: '${value}'
-            },
+            }
         },
         series: [
             {
                 name: 'Predicted',
                 type: 'line',
-                smooth: true,
                 data: chartData.predicted,
+                smooth: true,
+                lineStyle: {
+                    color: '#4F46E5',
+                    width: 3
+                },
                 itemStyle: {
-                    color: 'rgba(79, 70, 229, 1)',
-                },
-                areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        {
-                            offset: 0,
-                            color: 'rgba(79, 70, 229, 0.1)',
-                        },
-                        {
-                            offset: 1,
-                            color: 'rgba(79, 70, 229, 0)',
-                        },
-                    ]),
-                },
-                showSymbol: false,
+                    color: '#4F46E5'
+                }
             },
             {
                 name: 'Confidence Interval',
                 type: 'line',
                 data: chartData.upper,
                 lineStyle: {
-                    opacity: 0,
+                    opacity: 0
                 },
-                stack: 'confidence-band',
+                stack: 'confidence',
                 symbol: 'none',
                 areaStyle: {
-                    color: 'rgba(199, 210, 254, 0.4)',
+                    color: '#A5B4FC',
+                    opacity: 0.4
                 },
-                showSymbol: false,
+                emphasis: {
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
             },
             {
                 name: 'Confidence Interval',
                 type: 'line',
                 data: chartData.lower,
                 lineStyle: {
-                    opacity: 0,
+                    opacity: 0
                 },
                 areaStyle: {
-                    color: 'rgba(199, 210, 254, 0.4)',
+                    color: '#A5B4FC',
+                    opacity: 0.4
                 },
-                stack: 'confidence-band',
-                symbol: 'none',
-                showSymbol: false,
-            },
-        ],
+                stack: 'confidence',
+                symbol: 'none'
+            }
+        ]
     };
     
     chart.setOption(option);

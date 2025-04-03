@@ -1,95 +1,75 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="flex min-h-screen">
-    <nav class="w-64 bg-white shadow-lg">
-        <!-- Keep your existing sidebar -->
-    </nav>
-    
-    <main class="flex-1 p-8">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-2xl font-bold">Dashboard Overview</h1>
-            {% if user.is_superuser %}
-            <a href="{% url 'manage_companies' %}" class="bg-primary text-white px-4 py-2 rounded-button">
-                Manage Companies
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold">Dashboard Overview</h1>
+        {% if user.is_superuser %}
+        <a href="{% url 'manage_companies' %}" class="bg-primary text-white px-4 py-2 rounded">
+            Manage Companies
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Company Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {% for company in companies %}
+        <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+            <h3 class="text-lg font-semibold mb-2">{{ company.symbol }}</h3>
+            <p class="text-gray-600 mb-4">{{ company.name }}</p>
+            
+            <form method="POST" action="{% url 'predict_stock' company.symbol %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Forecast Days</label>
+                    <input type="number" name="days" value="30" min="1" max="365" 
+                           class="w-full px-3 py-2 border rounded">
+                </div>
+                <button type="submit" class="w-full bg-primary text-white py-2 rounded hover:bg-primary-dark">
+                    Predict
+                </button>
+            </form>
+            
+            <a href="{% url 'company_reviews' company.symbol %}" 
+               class="mt-3 block text-center text-sm text-primary hover:underline">
+                View Reviews
             </a>
-            {% endif %}
         </div>
+        {% endfor %}
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">Your Recent Predictions</h3>
         
-        <!-- Stock Prediction Section -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {% for company in companies %}
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold mb-2">{{ company.name }}</h3>
-                <p class="text-gray-600 mb-4">{{ company.symbol }}</p>
-                <form method="POST" action="{% url 'predict_stock' company.symbol %}">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="days-{{ company.symbol }}" class="block text-sm font-medium text-gray-700">
-                            Forecast Days
-                        </label>
-                        <input type="number" id="days-{{ company.symbol }}" name="days" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
-                               value="30" min="1" max="365">
-                    </div>
-                    <button type="submit" class="w-full bg-primary text-white py-2 rounded-button">
-                        Predict
-                    </button>
-                </form>
-            </div>
-            {% endfor %}
+        {% if recent_predictions %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prediction</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Range</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for pred in recent_predictions %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ pred.company.symbol }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ pred.forecast_date|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${{ pred.predicted_price|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            ${{ pred.lower_bound|floatformat:2 }} - ${{ pred.upper_bound|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        
-        <!-- Recent Predictions Section -->
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-4">Your Recent Predictions</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Company
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Date
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Predicted Price
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Range
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for pred in recent_predictions %}
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm font-medium text-gray-900">{{ pred.company.symbol }}</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-500">{{ pred.forecast_date }}</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-900">${{ pred.predicted_price }}</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-500">
-                                    ${{ pred.lower_bound }} - ${{ pred.upper_bound }}
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">
-                                No predictions yet. Make your first prediction!
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
+        {% else %}
+        <p class="text-gray-500">No predictions yet. Make your first prediction!</p>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

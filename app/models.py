@@ -3,7 +3,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 
 class UserManager(BaseUserManager):
-    def create_user(self,username, email, password=None, **extra_fields):
+    def create_user(self, username, email, password=None, **extra_fields):
         if not username:
             raise ValueError("The Username is required")
         if not email:
@@ -25,7 +25,6 @@ class User(AbstractBaseUser):
     email = models.EmailField(unique=True)
     is_active = models.BooleanField(default=True)
     is_superuser = models.BooleanField(default=False)
- # Add any additional fields you might need for stock predictions
     is_staff = models.BooleanField(default=False)
     
     USERNAME_FIELD = 'username'
@@ -52,7 +51,7 @@ class Company(models.Model):
 
 class Prediction(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     forecast_date = models.DateField()
     predicted_price = models.DecimalField(max_digits=10, decimal_places=2)
     lower_bound = models.DecimalField(max_digits=10, decimal_places=2)
@@ -64,3 +63,26 @@ class Prediction(models.Model):
     
     def __str__(self):
         return f"{self.company.symbol} prediction for {self.forecast_date}"
+
+class Review(models.Model):
+    RATING_CHOICES = [
+        (1, '1 - Poor'),
+        (2, '2 - Fair'),
+        (3, '3 - Average'),
+        (4, '4 - Good'),
+        (5, '5 - Excellent'),
+    ]
+    
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='reviews')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    rating = models.PositiveSmallIntegerField(choices=RATING_CHOICES)
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['company', 'user']
+    
+    def __str__(self):
+        return f"{self.user.username}'s review for {self.company.symbol}"

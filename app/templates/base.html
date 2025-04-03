@@ -11,6 +11,7 @@
           extend: {
             colors: {
               primary: "#4F46E5",
+              "primary-dark": "#4338CA",
               secondary: "#6366F1",
               danger: "#EF4444",
               success: "#10B981",
@@ -74,6 +75,17 @@
                 <i class="ri-dashboard-line"></i>
               </div>
               <span class="ml-3">Dashboard</span>
+            </a>
+
+            <!-- Added Stock Forecast Link -->
+            <a
+              href="{% url 'forecast_stock' %}"
+              class="flex items-center px-4 py-3 text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-link {% if request.resolver_match.url_name == 'forecast_stock' %}active{% endif %}"
+            >
+              <div class="w-6 h-6 flex items-center justify-center">
+                <i class="ri-bar-chart-line"></i>
+              </div>
+              <span class="ml-3">Stock Forecast</span>
             </a>
             
             {% if user.is_superuser %}
@@ -151,6 +163,17 @@
                 <i class="ri-dashboard-line"></i>
               </div>
               <span class="ml-3">Dashboard</span>
+            </a>
+
+            <!-- Added Stock Forecast Link to Mobile Sidebar -->
+            <a
+              href="{% url 'forecast_stock' %}"
+              class="flex items-center px-4 py-3 text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-link {% if request.resolver_match.url_name == 'forecast_stock' %}active{% endif %}"
+            >
+              <div class="w-6 h-6 flex items-center justify-center">
+                <i class="ri-bar-chart-line"></i>
+              </div>
+              <span class="ml-3">Stock Forecast</span>
             </a>
             
             {% if user.is_superuser %}

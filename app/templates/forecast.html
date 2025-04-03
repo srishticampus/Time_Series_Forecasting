@@ -1,116 +1,144 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Stock Forecast</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <style>
-        body { background-color: #f8f9fa; }
-        .container { margin-top: 30px; }
-        .card { box-shadow: 2px 2px 10px rgba(0,0,0,0.1); }
-    </style>
-    <script>
-        function fetchForecast(event) {
-            event.preventDefault();
-            let formData = new FormData(document.getElementById("forecastForm"));
+{% extends 'base.html' %}
 
-            fetch("{% url 'forecast_stock' %}", {
-                method: "POST",
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    document.getElementById("errorMessage").innerText = data.error;
-                    return;
-                }
-                Plotly.newPlot("forecastGraph", JSON.parse(data.forecast));
-                Plotly.newPlot("trendGraph", JSON.parse(data.trend));
-                Plotly.newPlot("weeklyGraph", JSON.parse(data.weekly));
-                Plotly.newPlot("yearlyGraph", JSON.parse(data.yearly));
-            });
-        }
-    </script>
-</head>
-<body>
+{% block extra_css %}
+<style>
+    .graph-container {
+        height: 400px;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+</style>
+{% endblock %}
 
-<div class="container">
-    <h2 class="text-center text-primary">Stock Price Forecast</h2>
-    <div class="text-end">
-        <form action="{% url 'logout' %}" method="post" style="margin: 10px;">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-primary">Logout</button>
-        </form>
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold">Advanced Stock Forecast</h1>
+        <a href="{% url 'dashboard' %}" class="text-primary hover:text-primary-dark">
+            <i class="ri-arrow-left-line"></i> Back to Dashboard
+        </a>
     </div>
-    
-    <div class="card p-3">
-        <form id="forecastForm" onsubmit="fetchForecast(event)">
+
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <form id="forecastForm" method="post">
             {% csrf_token %}
-            <div class="row">
-                <div class="col-md-4">
-                    <label>Company:</label>
-                    <select name="company" class="form-control">
-                        <option value="AAPL">Apple</option>
-                        <option value="FB">Facebook</option>
-                        <option value="AMD">AMD</option>
-                        <option value="INTC">Intel</option>
+            <div class="form-grid">
+                <div>
+                    <label class="block mb-2 font-medium">Company</label>
+                    <select name="company" class="w-full p-2 border rounded" required>
+                        {% for company in companies %}
+                        <option value="{{ company.symbol }}">{{ company.symbol }} - {{ company.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label>Start Date:</label>
-                    <input type="date" name="start_date" class="form-control">
+                <div>
+                    <label class="block mb-2 font-medium">Start Date</label>
+                    <input type="date" name="start_date" class="w-full p-2 border rounded" 
+                           value="{{ current_date|date:'Y-m-d' }}">
                 </div>
-                <div class="col-md-2">
-                    <label>Period (Days):</label>
-                    <input type="number" name="period" value="30" class="form-control">
+                <div>
+                    <label class="block mb-2 font-medium">Period (Days)</label>
+                    <input type="number" name="period" min="1" max="365" value="30" 
+                           class="w-full p-2 border rounded" required>
                 </div>
-                <div class="col-md-2">
-                    <label>Frequency:</label>
-                    <select name="frequency" class="form-control">
+                <div>
+                    <label class="block mb-2 font-medium">Frequency</label>
+                    <select name="frequency" class="w-full p-2 border rounded">
                         <option value="D">Daily</option>
                         <option value="W">Weekly</option>
                         <option value="M">Monthly</option>
                     </select>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary mt-3">Get Forecast</button>
+            <button type="submit" class="mt-4 bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">
+                Generate Forecast
+            </button>
         </form>
     </div>
 
-    <div id="errorMessage" class="text-danger text-center mt-3"></div>
+    <div id="errorMessage" class="text-red-500 mb-6"></div>
 
-    <!-- Responsive Grid Layout for Graphs -->
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card p-3">
-                <h4 class="text-center">Forecasted Prices</h4>
-                <div id="forecastGraph"></div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card p-3">
-                <h4 class="text-center">Trend Component</h4>
-                <div id="trendGraph"></div>
-            </div>
-        </div>
+    <!-- Main Forecast Graph -->
+    <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Price Forecast</h2>
+        <div id="forecastGraph" class="graph-container"></div>
     </div>
 
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card p-3">
-                <h4 class="text-center">Weekly Seasonality</h4>
-                <div id="weeklyGraph"></div>
-            </div>
+    <!-- Secondary Graphs -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <h2 class="text-xl font-semibold mb-4">Trend Component</h2>
+            <div id="trendGraph" class="graph-container"></div>
         </div>
-        <div class="col-md-6">
-            <div class="card p-3">
-                <h4 class="text-center">Yearly Seasonality</h4>
-                <div id="yearlyGraph"></div>
-            </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <h2 class="text-xl font-semibold mb-4">Weekly Seasonality</h2>
+            <div id="weeklyGraph" class="graph-container"></div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <h2 class="text-xl font-semibold mb-4">Yearly Seasonality</h2>
+            <div id="yearlyGraph" class="graph-container"></div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-</body>
-</html>
+{% block extra_js %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('forecastForm');
+    const errorMessage = document.getElementById('errorMessage');
 
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        errorMessage.textContent = 'Generating forecast...';
+        errorMessage.className = 'text-blue-500 mb-6';
+
+        fetch("{% url 'forecast_stock' %}", {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            errorMessage.textContent = '';
+            
+            // Render all four graphs
+            ['forecast', 'trend', 'weekly', 'yearly'].forEach(type => {
+                Plotly.newPlot(`${type}Graph`, JSON.parse(data[type]));
+            });
+        })
+        .catch(error => {
+            errorMessage.textContent = error.message;
+            errorMessage.className = 'text-red-500 mb-6';
+        });
+    });
+
+    // Initialize empty graphs
+    const initGraph = (id, title) => {
+        Plotly.newPlot(id, [{
+            x: [], y: [], type: 'scatter', mode: 'lines', name: title
+        }], {
+            title: title,
+            xaxis: { title: 'Date' },
+            yaxis: { title: 'Value' }
+        });
+    };
+
+    initGraph('forecastGraph', 'Price Forecast');
+    initGraph('trendGraph', 'Trend Component');
+    initGraph('weeklyGraph', 'Weekly Seasonality');
+    initGraph('yearlyGraph', 'Yearly Seasonality');
+});
+</script>
+{% endblock %}
