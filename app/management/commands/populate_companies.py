@@ -1,3 +1,4 @@
+#app/management/commands/populate_companies.py
 from django.core.management.base import BaseCommand
 from app.models import Company
 
