@@ -1,3 +1,4 @@
+#app/utils.py
 import joblib
 import pandas as pd
 from io import StringIO
@@ -24,7 +25,7 @@ def make_prediction(company_symbol, days=30, user=None):
     """Make prediction for a company for the next N days"""
     model = load_model(company_symbol)
     
-    # Generate future dates
+    # Generate future dates starting from today
     start_date = datetime.now().date()
     future_dates = pd.date_range(
         start=start_date,
@@ -56,4 +57,7 @@ def make_prediction(company_symbol, days=30, user=None):
     
     Prediction.objects.bulk_create(predictions)
     
-    return forecast
+    return {
+        'forecast': forecast,
+        'future_dates': future_dates
+    }
