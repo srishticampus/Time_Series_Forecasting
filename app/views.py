@@ -12,12 +12,16 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from django.contrib.auth import login, authenticate,logout
+from django.contrib.auth import login, authenticate, logout
 import re
 from django.contrib.auth.hashers import make_password
 from .models import Company, Prediction, Review, User
 from django.db import models
 from .forms import ReviewForm
+import io
+import base64
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 # Helper Functions
 def validate_password(password):
@@ -116,7 +120,6 @@ def make_prediction(symbol, days, user):
     forecast = model.predict(future)
     return forecast.tail(days)
 
-
 @login_required
 def logout_view(request):
     logout(request)
@@ -157,25 +160,70 @@ def forecast_stock(request):
     if request.method == "POST":
         try:
             company_symbol = request.POST.get("company")
-            start_date = request.POST.get("start_date")
+            start_date_str = request.POST.get("start_date")
             period = int(request.POST.get("period", "30"))
-            freq = request.POST.get("frequency", "D")  # Default to daily frequency
+            freq = request.POST.get("frequency", "D")
             
-            if not company_symbol or not start_date:
+            if not company_symbol or not start_date_str:
                 return JsonResponse({"error": "Company and start date are required."}, status=400)
 
             model = load_prophet_model(company_symbol)
             if not model:
                 return JsonResponse({"error": f"Model for {company_symbol} not found."}, status=400)
 
-            # Create future dataframe with specified frequency
-            future = model.make_future_dataframe(periods=period, freq=freq)
+            # Convert and validate start date
+            try:
+                start_date = pd.to_datetime(start_date_str).tz_localize(None)
+            except ValueError:
+                return JsonResponse({"error": "Invalid start date format. Use YYYY-MM-DD."}, status=400)
+
+            # Get the last training date from the model
+            last_training_date = pd.to_datetime(model.history['ds'].max()).tz_localize(None)
+            
+            # Calculate days needed to reach start_date from last training date
+            days_needed = (start_date - last_training_date).days
+            
+            # If start_date is before last training date, use last training date as start
+            if days_needed < 0:
+                start_date = last_training_date
+                days_needed = 0
+                messages.info(request, 
+                    f"Start date adjusted to model's last training date: {last_training_date.strftime('%Y-%m-%d')}"
+                )
+
+            # Generate future dataframe
+            future = model.make_future_dataframe(
+                periods=days_needed + period,  # Enough to cover from last training to end of period
+                freq=freq,
+                include_history=False
+            )
+            
+            # Filter to only include dates from start_date onward
+            future = future[future['ds'] >= start_date]
+            
+            # Make sure we have enough data
+            if len(future) < period:
+                # If not enough, generate more periods
+                additional_periods = period - len(future)
+                more_future = model.make_future_dataframe(
+                    periods=additional_periods,
+                    freq=freq,
+                    include_history=False
+                )
+                future = pd.concat([future, more_future])
+            
+            # Limit to the requested period
+            future = future.head(period)
             forecast = model.predict(future)
+            
+            # Prepare dates for JSON
+            forecast_dates = forecast['ds'].dt.strftime('%Y-%m-%d').tolist()
+            
             company = get_object_or_404(Company, symbol=company_symbol)
 
-            # Update or create predictions
+            # Save predictions
             Prediction.objects.filter(company=company, user=request.user).delete()
-            for _, row in forecast.tail(period).iterrows():
+            for _, row in forecast.iterrows():
                 Prediction.objects.create(
                     company=company,
                     user=request.user,
@@ -185,113 +233,49 @@ def forecast_stock(request):
                     upper_bound=row['yhat_upper']
                 )
 
-            # === 1. Main Forecast Plot with Seasonality ===
-            fig1 = go.Figure()
-            fig1.add_trace(go.Scatter(
-                x=forecast["ds"], 
-                y=forecast["yhat"], 
-                mode="lines+markers", 
-                name="Predicted Price", 
-                line=dict(color="blue")
-            ))
-            fig1.add_trace(go.Scatter(
-                x=forecast["ds"], 
-                y=forecast["yhat_upper"], 
-                mode="lines", 
-                name="Upper Bound", 
-                line=dict(dash="dot", color="lightblue"),
-                fill=None
-            ))
-            fig1.add_trace(go.Scatter(
-                x=forecast["ds"], 
-                y=forecast["yhat_lower"], 
-                mode="lines", 
-                name="Lower Bound", 
-                line=dict(dash="dot", color="lightblue"),
-                fill='tonexty',
-                fillcolor='rgba(173, 216, 230, 0.2)'
-            ))
-            fig1.add_trace(go.Scatter(
-                x=forecast["ds"], 
-                y=forecast["weekly"], 
-                mode="lines", 
-                name="Weekly Seasonality", 
-                line=dict(color="orange")
-            ))
-            fig1.add_trace(go.Scatter(
-                x=forecast["ds"], 
-                y=forecast["yearly"], 
-                mode="lines", 
-                name="Yearly Seasonality", 
-                line=dict(color="green")
-            ))
-            fig1.update_layout(
-                title=f"{company.name} ({company.symbol}) Price Forecast",
-                xaxis_title="Date",
-                yaxis_title="Price",
-                template="plotly_white",
-                hovermode="x unified"
-            )
+            # Generate Prophet plot
+            fig, ax = plt.subplots(figsize=(10, 5))
+            model.plot(forecast, ax=ax)
+            ax.set_title(f"{company.name} Forecast")
+            ax.set_xlabel("Date")
+            ax.set_ylabel("Price ($)")
 
-            # === 2. Trend Component Plot ===
-            fig2 = go.Figure()
-            fig2.add_trace(go.Scatter(
-                x=forecast["ds"], 
-                y=forecast["trend"], 
-                mode='lines', 
-                name="Trend", 
-                line=dict(color="purple")
-            ))
-            fig2.update_layout(
-                title="Trend Component",
-                xaxis_title="Date",
-                yaxis_title="Trend Value",
-                template="plotly_white"
-            )
+            buf = io.BytesIO()
+            canvas = FigureCanvas(fig)
+            canvas.print_png(buf)
+            plt.close(fig)
+            image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+            image_url = f"data:image/png;base64,{image_base64}"
 
-            # === 3. Weekly Seasonality Plot ===
-            fig3 = go.Figure()
-            fig3.add_trace(go.Scatter(
-                x=forecast["ds"], 
-                y=forecast["weekly"], 
-                mode='lines', 
-                name="Weekly Seasonality", 
-                line=dict(color="orange")
-            ))
-            fig3.update_layout(
-                title="Weekly Seasonality Component",
-                xaxis_title="Date",
-                yaxis_title="Effect",
-                template="plotly_white"
-            )
-
-            # === 4. Yearly Seasonality Plot ===
-            fig4 = go.Figure()
-            fig4.add_trace(go.Scatter(
-                x=forecast["ds"], 
-                y=forecast["yearly"], 
-                mode='lines', 
-                name="Yearly Seasonality", 
-                line=dict(color="brown")
-            ))
-            fig4.update_layout(
-                title="Yearly Seasonality Component",
-                xaxis_title="Date",
-                yaxis_title="Effect",
-                template="plotly_white"
-            )
-
-            return JsonResponse({
-                "forecast": fig1.to_json(),
-                "trend": fig2.to_json(),
-                "weekly": fig3.to_json(),
-                "yearly": fig4.to_json(),
+            response_data = {
+                "forecast": {
+                    "x": forecast_dates,
+                    "y": forecast["yhat"].tolist(),
+                    "upper": forecast["yhat_upper"].tolist(),
+                    "lower": forecast["yhat_lower"].tolist(),
+                    "weekly": forecast["weekly"].tolist(),
+                    "yearly": forecast["yearly"].tolist()
+                },
+                "trend": {
+                    "x": forecast_dates,
+                    "y": forecast["trend"].tolist()
+                },
+                "weekly": {
+                    "x": forecast_dates,
+                    "y": forecast["weekly"].tolist()
+                },
+                "yearly": {
+                    "x": forecast_dates,
+                    "y": forecast["yearly"].tolist()
+                },
                 "company_name": company.name,
-                "company_symbol": company.symbol
-            })
+                "company_symbol": company.symbol,
+                "prophet_default": image_url,
+                "last_training_date": last_training_date.strftime('%Y-%m-%d')
+            }
 
-        except ValueError as e:
-            return JsonResponse({"error": "Invalid input values: " + str(e)}, status=400)
+            return JsonResponse(response_data)
+
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
 
@@ -302,20 +286,63 @@ def predict_stock(request, symbol):
     if request.method == 'POST':
         days = int(request.POST.get('days', 30))
         try:
-            forecast = make_prediction(symbol, days, request.user)
+            model = load_prophet_model(symbol)
+            if not model:
+                raise ValueError(f"No model found for {symbol}")
+            
+            # Get current date (today) and last training date
+            current_date = pd.to_datetime(datetime.now().date())
+            last_training_date = pd.to_datetime(model.history['ds'].max())
+            
+            # Calculate how many days we need to forecast from last training date
+            days_needed = (current_date - last_training_date).days + days
+            
+            # Make sure we're not predicting the past
+            if days_needed < days:
+                days_needed = days  # Minimum forecast period
+                messages.info(request, 
+                    f"Forecast starts from model's last training date: {last_training_date.strftime('%Y-%m-%d')}"
+                )
+            
+            # Generate future dataframe
+            future = model.make_future_dataframe(periods=days_needed, include_history=False)
+            
+            # Filter to only include dates from current_date onward
+            future = future[future['ds'] >= current_date].head(days)
+            
+            if future.empty:
+                raise ValueError("No valid forecast dates available")
+            
+            forecast = model.predict(future)
+            
+            # Convert dates to strings
             dates = forecast['ds'].dt.strftime('%Y-%m-%d').tolist()
             
+            # Generate Prophet plot
+            fig, ax = plt.subplots(figsize=(10, 5))
+            model.plot(forecast, ax=ax)
+            ax.set_title(f"{company.name} Forecast")
+            
+            buf = io.BytesIO()
+            canvas = FigureCanvas(fig)
+            canvas.print_png(buf)
+            plt.close(fig)
+            image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+            image_url = f"data:image/png;base64,{image_base64}"
+
+            # Save predictions
             Prediction.objects.filter(company=company, user=request.user).delete()
-            predictions = [
-                Prediction.objects.create(
+            predictions = []
+            for _, row in forecast.iterrows():
+                pred = Prediction.objects.create(
                     company=company,
                     user=request.user,
                     forecast_date=row['ds'].date(),
                     predicted_price=row['yhat'],
                     lower_bound=row['yhat_lower'],
                     upper_bound=row['yhat_upper']
-                ) for _, row in forecast.iterrows()
-            ]
+                )
+                predictions.append(pred)
             
             return render(request, 'prediction_results.html', {
                 'chart_data': json.dumps({
@@ -326,7 +353,9 @@ def predict_stock(request, symbol):
                 }),
                 'predictions': predictions,
                 'company': company,
-                'days': days
+                'days': days,
+                'prophet_image': image_url,
+                'forecast_start_date': current_date.strftime('%Y-%m-%d')
             })
             
         except Exception as e:
