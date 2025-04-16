@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-{% comment %} app/templates/forecast.html {% endcomment %}
 {% block extra_css %}
 <style>
     .graph-container {
@@ -11,6 +10,12 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 1rem;
+    }
+    #prophetImage img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
     }
 </style>
 {% endblock %}
@@ -63,6 +68,13 @@
 
     <div id="errorMessage" class="text-red-500 mb-6"></div>
 
+    <!-- Prophet Default Plot -->
+    <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Prophet Default Forecast</h2>
+        <div id="prophetImage" class="graph-container flex justify-center items-center bg-gray-50">
+        </div>
+    </div>
+
     <!-- Main Forecast Graph -->
     <div class="bg-white rounded-lg shadow p-4 mb-6">
         <h2 class="text-xl font-semibold mb-4">Price Forecast</h2>
@@ -113,10 +125,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             errorMessage.textContent = '';
             
-            // Render all four graphs
-            ['forecast', 'trend', 'weekly', 'yearly'].forEach(type => {
-                Plotly.newPlot(`${type}Graph`, JSON.parse(data[type]));
-            });
+            // Display Prophet default plot
+            if (data.prophet_default) {
+                document.getElementById('prophetImage').innerHTML = 
+                    `<img src="${data.prophet_default}" alt="Prophet Forecast">`;
+            }
+            
+            // Render all four graphs with proper date handling
+            renderGraph('forecastGraph', 'Price Forecast', data.forecast);
+            renderGraph('trendGraph', 'Trend Component', data.trend);
+            renderGraph('weeklyGraph', 'Weekly Seasonality', data.weekly);
+            renderGraph('yearlyGraph', 'Yearly Seasonality', data.yearly);
         })
         .catch(error => {
             errorMessage.textContent = error.message;
@@ -124,21 +143,83 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Initialize empty graphs
-    const initGraph = (id, title) => {
-        Plotly.newPlot(id, [{
-            x: [], y: [], type: 'scatter', mode: 'lines', name: title
-        }], {
-            title: title,
-            xaxis: { title: 'Date' },
-            yaxis: { title: 'Value' }
-        });
-    };
+    function renderGraph(elementId, title, data) {
+        const traces = [];
+        
+        if (elementId === 'forecastGraph') {
+            // Main forecast with confidence interval
+            traces.push({
+                x: data.x,
+                y: data.y,
+                mode: 'lines+markers',
+                name: 'Predicted Price',
+                line: {color: 'blue'}
+            });
+            traces.push({
+                x: data.x,
+                y: data.upper,
+                mode: 'lines',
+                name: 'Upper Bound',
+                line: {dash: 'dot', color: 'lightblue'},
+                fill: null
+            });
+            traces.push({
+                x: data.x,
+                y: data.lower,
+                mode: 'lines',
+                name: 'Lower Bound',
+                line: {dash: 'dot', color: 'lightblue'},
+                fill: 'tonexty',
+                fillcolor: 'rgba(173, 216, 230, 0.2)'
+            });
+            traces.push({
+                x: data.x,
+                y: data.weekly,
+                mode: 'lines',
+                name: 'Weekly Seasonality',
+                line: {color: 'orange'}
+            });
+            traces.push({
+                x: data.x,
+                y: data.yearly,
+                mode: 'lines',
+                name: 'Yearly Seasonality',
+                line: {color: 'green'}
+            });
+        } else {
+            // Other graphs
+            traces.push({
+                x: data.x,
+                y: data.y,
+                mode: 'lines',
+                name: title,
+                line: {color: elementId === 'trendGraph' ? 'purple' : 
+                      elementId === 'weeklyGraph' ? 'orange' : 'brown'}
+            });
+        }
 
-    initGraph('forecastGraph', 'Price Forecast');
-    initGraph('trendGraph', 'Trend Component');
-    initGraph('weeklyGraph', 'Weekly Seasonality');
-    initGraph('yearlyGraph', 'Yearly Seasonality');
+        const layout = {
+            title: title,
+            xaxis: {
+                title: 'Date',
+                type: 'date'
+            },
+            yaxis: {title: 'Value'},
+            template: 'plotly_white',
+            hovermode: 'x unified'
+        };
+
+        Plotly.newPlot(elementId, traces, layout);
+    }
+
+    // Initialize empty graphs
+    ['forecastGraph', 'trendGraph', 'weeklyGraph', 'yearlyGraph'].forEach(id => {
+        Plotly.newPlot(id, [], {
+            title: id.replace('Graph', ''),
+            xaxis: {title: 'Date'},
+            yaxis: {title: 'Value'}
+        });
+    });
 });
 </script>
 {% endblock %}
